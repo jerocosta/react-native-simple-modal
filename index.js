@@ -9,8 +9,7 @@ const {
    TouchableOpacity,
    Animated,
    PropTypes,
-   Platform,
-   BackAndroid
+   Text
 } = React;
 
 class Modal extends Component {
@@ -20,72 +19,48 @@ class Modal extends Component {
       this.state = {
          opacity: new Animated.Value(0),
          scale: new Animated.Value(0.8),
-         offset: new Animated.Value(0)
+         offset: new Animated.Value(0),
+         hidden: true,
       };
    }
-   componentWillReceiveProps(props) {
-      if (props.open && props.children !== this.state.children) {
-         this.setState({children: props.children});
-      }
-
-      if (props.open !== this.props.open) {
-         if (props.open)
-            this.open();
-         else
-            this.close();
-      }
-
-      if (props.offset !== this.props.offset) {
-         this.animateOffset(props.offset);
-      }
-   }
-   componentDidMount() {
-      if (Platform.OS === 'android') {
-         BackAndroid.addEventListener('hardwareBackPress', () => {
-            if (this.state.open) {
-               this.close();
-               return true;
-            }
-            return false;
-         });
-      }
-   }
    setPhase(toValue) {
-      if (this.state.open != toValue) {
-         const {animationDuration, animationTension} = this.props;
-         Animated.timing(
-            this.state.opacity,
-            {
-               toValue,
-               duration: animationDuration
-            }
-         ).start();
+      const {animationDuration, animationTension} = this.props;
+      this.setState({hidden: false});
+      Animated.timing(
+         this.state.opacity,
+         {
+            toValue,
+            duration: animationDuration
+         }
+      ).start();
 
-         Animated.spring(
-            this.state.scale,
-            {
-               toValue: toValue ? 1 : 0.8,
-               tension: animationTension
-            }
-         ).start();
+      Animated.spring(
+         this.state.scale,
+         {
+            toValue: toValue ? 1 : 0.8,
+            tension: animationTension
+         }
+      ).start();
 
-         setTimeout(() => {
-            if (toValue)
-               this.props.modalDidOpen();
-            else {
-               this.setState({open: false, children: undefined});
-               this.props.modalDidClose();
-            }
-         }, animationDuration);
-      }
+      setTimeout(() => {
+         if (toValue) {
+            this.props.modalDidOpen();
+            this.setState({hidden: false});
+         } else {
+            this.props.modalDidClose();
+            this.setState({hidden: true});
+         }
+      }, animationDuration);
    }
    render() {
-      const {opacity, open, scale, offset, children} = this.state;
+      const {opacity, open, scale, offset, hidden} = this.state;
       const {overlayOpacity} = this.props;
+      var stylesArray = [styles.absolute, styles.container]
+      if(hidden === true) { stylesArray = styles.hidden; }
       return (
          <View
          pointerEvents={open ? 'auto' : 'none'}
-         style={[styles.absolute, styles.container]}>
+         style={stylesArray}>
             <TouchableOpacity
             style={styles.absolute}
             onPress={this.close.bind(this)}
@@ -98,16 +73,19 @@ class Modal extends Component {
                   this.props.style,
                   {opacity, transform: [{scale}, {translateY: offset}]}
                ]}>
-               {children}
+               {this.props.children}
             </Animated.View>
          </View>
       );
    }
+
+   // public methods
    open() {
-      this.setState({open: true});
+      this.setState({open: true, hidden: false});
       this.setPhase(1);
    }
    close() {
+      this.setState({open: false});
       this.setPhase(0);
    }
    animateOffset(offset) {
@@ -119,8 +97,6 @@ class Modal extends Component {
 }
 
 Modal.propTypes = {
-   open: PropTypes.bool,
-   offset: PropTypes.number,
    overlayOpacity: PropTypes.number,
    animationDuration: PropTypes.number,
    animationTension: PropTypes.number,
@@ -129,8 +105,6 @@ Modal.propTypes = {
 };
 
 Modal.defaultProps = {
-   open: false,
-   offset: 0,
    overlayOpacity: 0.75,
    animationDuration: 200,
    animationTension: 40,
@@ -156,6 +130,13 @@ const styles = StyleSheet.create({
       margin: 20,
       padding: 10,
       backgroundColor: '#F5F5F5'
+   },
+   hidden: {
+      position: 'absolute',
+      top: -10000,
+      left: 0,      
+      height: 0,
+      width: 0,
    }
 });
 
